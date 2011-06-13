@@ -30,6 +30,7 @@ dht_callback(void *closure, int event,
 #define DHT_EVENT_VALUES6 2
 #define DHT_EVENT_SEARCH_DONE 3
 #define DHT_EVENT_SEARCH_DONE6 4
+#define DHT_EVENT_INFOHASH_SEEN 5
 
 extern FILE *dht_debug;
 
@@ -55,3 +56,7 @@ void dht_hash(void *hash_return, int hash_size,
               const void *v2, int len2,
               const void *v3, int len3);
 int dht_random_bytes(void *buf, size_t size);
+
+int
+dht_send(const void *buf, size_t len, int flags,
+         const struct sockaddr *sa, int salen);

@@ -10,8 +10,6 @@
 		3C519DC613A60CAC006079B2 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C519DC513A60CAC006079B2 /* main.c */; };
 		3C519DC813A60CAC006079B2 /* dht_harvester.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 3C519DC713A60CAC006079B2 /* dht_harvester.1 */; };
 		3C519DD013A60CC0006079B2 /* dht.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C519DCE13A60CC0006079B2 /* dht.c */; };
-		3C519DD313A61020006079B2 /* mongoose.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C519DD113A61020006079B2 /* mongoose.c */; };
-		3C519DD613A618E0006079B2 /* strmap.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C519DD413A618E0006079B2 /* strmap.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -33,10 +31,6 @@
 		3C519DC713A60CAC006079B2 /* dht_harvester.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = dht_harvester.1; sourceTree = "<group>"; };
 		3C519DCE13A60CC0006079B2 /* dht.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = dht.c; sourceTree = "<group>"; };
 		3C519DCF13A60CC0006079B2 /* dht.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = dht.h; sourceTree = "<group>"; };
-		3C519DD113A61020006079B2 /* mongoose.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = mongoose.c; sourceTree = "<group>"; };
-		3C519DD213A61020006079B2 /* mongoose.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mongoose.h; sourceTree = "<group>"; };
-		3C519DD413A618E0006079B2 /* strmap.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = strmap.c; sourceTree = "<group>"; };
-		3C519DD513A618E0006079B2 /* strmap.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = strmap.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,12 +63,8 @@
 		3C519DC413A60CAC006079B2 /* dht-harvester */ = {
 			isa = PBXGroup;
 			children = (
-				3C519DD113A61020006079B2 /* mongoose.c */,
-				3C519DD213A61020006079B2 /* mongoose.h */,
 				3C519DCE13A60CC0006079B2 /* dht.c */,
 				3C519DCF13A60CC0006079B2 /* dht.h */,
-				3C519DD413A618E0006079B2 /* strmap.c */,
-				3C519DD513A618E0006079B2 /* strmap.h */,
 				3C519DC513A60CAC006079B2 /* main.c */,
 				3C519DC713A60CAC006079B2 /* dht_harvester.1 */,
 			);
@@ -133,8 +123,6 @@
 			files = (
 				3C519DC613A60CAC006079B2 /* main.c in Sources */,
 				3C519DD013A60CC0006079B2 /* dht.c in Sources */,
-				3C519DD313A61020006079B2 /* mongoose.c in Sources */,
-				3C519DD613A618E0006079B2 /* strmap.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

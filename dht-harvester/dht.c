@@ -249,6 +249,7 @@ static int send_error(const struct sockaddr *sa, int salen,
 #define FIND_NODE 3
 #define GET_PEERS 4
 #define ANNOUNCE_PEER 5
+#define CUSTOM_SEARCH 99
 
 #define WANT4 1
 #define WANT6 2
@@ -1862,8 +1863,8 @@ dht_periodic(const void *buf, size_t buflen,
         int want;
         unsigned short ttid;
 
-        if(is_martian(from))
-            goto dontread;
+//        if(is_martian(from))
+//            goto dontread;
 
         for(i = 0; i < DHT_MAX_BLACKLISTED; i++) {
             if(memcmp(&blacklist[i], from, fromlen) == 0) {
@@ -1886,19 +1887,19 @@ dht_periodic(const void *buf, size_t buflen,
                                 values, &values_len, values6, &values6_len,
                                 &want);
 
-        if(message < 0 || message == ERROR || id_cmp(id, zeroes) == 0) {
+        if(message < 0 || message == ERROR || ((id_cmp(id, zeroes) == 0) && message != CUSTOM_SEARCH)) {
             debugf("Unparseable message: ");
             debug_printable(buf, buflen);
             debugf("\n");
             goto dontread;
         }
 
-        if(id_cmp(id, myid) == 0) {
+        if(id_cmp(id, myid) == 0 && message != CUSTOM_SEARCH) {
             debugf("Received message from self.\n");
             goto dontread;
         }
-
-        if(message > REPLY) {
+        
+        if(message > REPLY && message != CUSTOM_SEARCH) {
             /* Rate limit requests. */
             if(!token_bucket()) {
                 debugf("Dropping request due to rate limiting.\n");
@@ -2047,6 +2048,8 @@ dht_periodic(const void *buf, size_t buflen,
                            203, "Get_peers with no info_hash");
                 break;
             } else {
+                (*callback)(closure, DHT_EVENT_INFOHASH_SEEN, info_hash, NULL, 0);
+                
                 struct storage *st = find_storage(info_hash);
                 unsigned char token[TOKEN_SIZE];
                 make_token(from, 0, token);
@@ -2087,12 +2090,24 @@ dht_periodic(const void *buf, size_t buflen,
                            203, "Announce_peer with forbidden port number");
                 break;
             }
+                
+            (*callback)(closure, DHT_EVENT_INFOHASH_SEEN, info_hash, NULL, 0);
+                
             storage_store(info_hash, from, port);
             /* Note that if storage_store failed, we lie to the requestor.
                This is to prevent them from backtracking, and hence
                polluting the DHT. */
             debugf("Sending peer announced.\n");
             send_peer_announced(from, fromlen, tid, tid_len);
+            break;                
+        case CUSTOM_SEARCH:
+            debugf("Custom search!\n");
+                
+            if(dht_socket >= 0)
+                dht_search(info_hash, 0, AF_INET, callback, NULL);
+            if(dht_socket6 >= 0)
+                dht_search(info_hash, 0, AF_INET6, callback, NULL);
+            break;
         }
     }
 
@@ -2291,7 +2306,7 @@ dht_ping_node(struct sockaddr *sa, int salen)
         COPY(buf, offset, my_v, sizeof(my_v), size);    \
     }
 
-static int
+int
 dht_send(const void *buf, size_t len, int flags,
          const struct sockaddr *sa, int salen)
 {
@@ -2879,7 +2894,9 @@ parse_message(const unsigned char *buf, int buflen,
     }
 
 #undef CHECK
-
+    
+    if(memmem(buf, buflen, "3:xyz6:search", 13))
+        return CUSTOM_SEARCH;
     if(memmem(buf, buflen, "1:y1:r", 6))
         return REPLY;
     if(memmem(buf, buflen, "1:y1:e", 6))

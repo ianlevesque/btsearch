@@ -18,6 +18,9 @@
 static struct sockaddr_storage bootstrap_nodes[MAX_BOOTSTRAP_NODES];
 static int num_bootstrap_nodes = 0;
 
+static struct sockaddr_storage notify_addr = {0,};
+static size_t notify_addr_len = {0,};
+
 static volatile sig_atomic_t dumping = 0, searching = 0, exiting = 0;
 
 static void
@@ -63,10 +66,28 @@ init_signals(void)
     sigaction(SIGINT, &sa, NULL);
 }
 
-const unsigned char hash[20] = {
+unsigned char hash[20] = {
     0x54, 0x57, 0x87, 0x89, 0xdf, 0xc4, 0x23, 0xee, 0xf6, 0x03,
     0x1f, 0x81, 0x94, 0xa9, 0x3a, 0x16, 0x98, 0x8b, 0x72, 0x7b
 };
+
+
+#define CHECK(offset, delta, size)                      \
+if(delta < 0 || offset + delta > size) goto fail
+
+#define INC(offset, delta, size)                        \
+CHECK(offset, delta, size);                         \
+offset += delta
+
+#define COPY(buf, offset, src, delta, size)             \
+CHECK(offset, delta, size);                         \
+memcpy(buf + offset, src, delta);                   \
+offset += delta;
+
+#define ADD_V(buf, offset, size)                        \
+if(have_v) {                                        \
+COPY(buf, offset, my_v, sizeof(my_v), size);    \
+}
 
 /* The call-back function is called by the DHT whenever something
  interesting happens.  Right now, it only happens when we get a new value or
@@ -77,10 +98,86 @@ callback(void *closure,
          unsigned char *info_hash,
          void *data, size_t data_len)
 {
-    if(event == DHT_EVENT_SEARCH_DONE)
+    if(event == DHT_EVENT_SEARCH_DONE) {
         printf("Search done.\n");
-    else if(event == DHT_EVENT_VALUES)
-        printf("Received %d values.\n", (int)(data_len / 6));
+    } else if(event == DHT_EVENT_VALUES) {
+        printf("Received %d values for ", (int)(data_len / 6));
+        for(int i = 0; i < 20; i++)
+            printf("%02x", info_hash[i]);
+        
+        printf(".\n");
+        
+        char buf[512];
+        int i = 0, rc;
+        rc = snprintf(buf + i, 512 - i, "d1:t9:gotvalues"); INC(i, rc, 512);
+        rc = snprintf(buf + i, 512 - i, "1:h20:"); INC(i, rc, 512);
+        COPY(buf, i, info_hash, 20, 512);
+        rc = snprintf(buf + i, 512 - i, "6:valuesl"); INC(i, rc, 512);
+        
+        int entries_to_send = (512 - i - 2) / (6 + 2);
+        if(entries_to_send > (int)(data_len / 6)) {
+            entries_to_send = (int)(data_len / 6);
+        } else {
+            printf("Warning: Truncated results list at %i entries\n", entries_to_send);
+        }
+        
+        for(int j = 0; j < entries_to_send; j++) {
+            rc = snprintf(buf + i, 512 - i, "6:"); INC(i, rc, 512);
+            COPY(buf, i, data + 6 * j, 6, 512);
+        }
+        
+        rc = snprintf(buf + i, 512 - i, "ee"); INC(i, rc, 512);
+        
+        dht_send(buf, i, 0, (struct sockaddr *)&notify_addr, notify_addr_len);
+    } else if(event == DHT_EVENT_VALUES6) {
+        printf("Received %d IPv6 values for \n", (int)(data_len / 18));
+        for(int i = 0; i < 20; i++)
+            printf("%02x", info_hash[i]);
+        
+        printf(".\n");
+        
+        char buf[512];
+        int i = 0, rc;
+        rc = snprintf(buf + i, 512 - i, "d1:t9:gotvalues"); INC(i, rc, 512);
+        rc = snprintf(buf + i, 512 - i, "1:h20:"); INC(i, rc, 512);
+        COPY(buf, i, info_hash, 20, 512);
+        rc = snprintf(buf + i, 512 - i, "7:values6l"); INC(i, rc, 512);
+        
+        int entries_to_send = (512 - i - 2) / (18 + 3);
+        if(entries_to_send > (int)(data_len / 18)) {
+            entries_to_send = (int)(data_len / 18);
+        } else {
+            printf("Warning: Truncated results list at %i entries\n", entries_to_send);
+        }
+        
+        for(int j = 0; j < entries_to_send; j++) {
+            rc = snprintf(buf + i, 512 - i, "18:"); INC(i, rc, 512);
+            COPY(buf, i, data + 18 * j, 18, 512);
+        }
+        
+        rc = snprintf(buf + i, 512 - i, "ee"); INC(i, rc, 512);
+        
+        dht_send(buf, i, 0, (struct sockaddr *)&notify_addr, notify_addr_len);
+    } else if(event == DHT_EVENT_INFOHASH_SEEN) {
+        printf("Saw infohash: ");
+        
+        for(int i = 0; i < 20; i++)
+            printf("%02x", info_hash[i]);
+        
+        printf(".\n");
+        
+        char buf[512];
+        int i = 0, rc;
+        rc = snprintf(buf + i, 512 - i, "d1:h20:"); INC(i, rc, 512);
+        COPY(buf, i, info_hash, 20, 512);
+        rc = snprintf(buf + i, 512 - i, "1:t7:sawhashe"); INC(i, rc, 512);
+        
+        dht_send(buf, i, 0, (struct sockaddr *)&notify_addr, notify_addr_len);
+        
+//        memcpy(hash, info_hash, 20);
+//        searching = 1;
+    }
+fail:;
 }
 
 static unsigned char buf[4096];
@@ -202,6 +299,39 @@ main(int argc, char **argv)
     port = atoi(argv[i++]);
     if(port <= 0 || port >= 0x10000)
         goto usage;
+    
+    // notify host
+    {
+        if(argc < i + 2)
+            goto usage;
+        
+        const char *notify_host = argv[i++];
+        const char *notify_port = argv[i++];
+        
+        struct addrinfo hints, *info, *infop;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_socktype = SOCK_DGRAM;
+        if(!ipv6)
+            hints.ai_family = AF_INET;
+        else if(!ipv4)
+            hints.ai_family = AF_INET6;
+        else
+            hints.ai_family = 0;
+        rc = getaddrinfo(notify_host, notify_port, &hints, &info);
+        if(rc != 0) {
+            fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rc));
+            exit(1);
+        }
+        
+        infop = info;
+        if(infop) {
+            memcpy(&notify_addr,
+                   infop->ai_addr, infop->ai_addrlen);
+            notify_addr_len = infop->ai_addrlen;
+            infop = infop->ai_next;
+        }
+        freeaddrinfo(info);
+    }
     
     // default bootstrap
     {
@@ -443,7 +573,7 @@ main(int argc, char **argv)
     return 0;
     
 usage:
-    printf("Usage: dht-harvester [-q] [-4] [-6] [-i filename] [-b address] [-n filename] listen-port\n");
+    printf("Usage: dht-harvester [-q] [-4] [-6] [-i filename] [-b address] [-n filename] listen-port notify-host notify-port\n");
     exit(1);
 }
 
