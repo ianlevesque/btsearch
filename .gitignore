@@ -1,3 +1,6 @@
 *.DS_Store
 xcuserdata/
 project.xcworkspace/
+*.o
+dht-harvester/dht-harvester
+harvester.id

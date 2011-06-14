@@ -101,14 +101,16 @@ callback(void *closure,
     if(event == DHT_EVENT_SEARCH_DONE) {
         printf("Search done.\n");
     } else if(event == DHT_EVENT_VALUES) {
+        int i, rc, j;
+        
         printf("Received %d values for ", (int)(data_len / 6));
-        for(int i = 0; i < 20; i++)
+        for(i = 0; i < 20; i++)
             printf("%02x", info_hash[i]);
         
         printf(".\n");
         
         char buf[512];
-        int i = 0, rc;
+        i = 0;
         rc = snprintf(buf + i, 512 - i, "d1:t9:gotvalues"); INC(i, rc, 512);
         rc = snprintf(buf + i, 512 - i, "1:h20:"); INC(i, rc, 512);
         COPY(buf, i, info_hash, 20, 512);
@@ -121,7 +123,7 @@ callback(void *closure,
             printf("Warning: Truncated results list at %i entries\n", entries_to_send);
         }
         
-        for(int j = 0; j < entries_to_send; j++) {
+        for(j = 0; j < entries_to_send; j++) {
             rc = snprintf(buf + i, 512 - i, "6:"); INC(i, rc, 512);
             COPY(buf, i, data + 6 * j, 6, 512);
         }
@@ -130,14 +132,16 @@ callback(void *closure,
         
         dht_send(buf, i, 0, (struct sockaddr *)&notify_addr, notify_addr_len);
     } else if(event == DHT_EVENT_VALUES6) {
+        int i, rc, j;
+        
         printf("Received %d IPv6 values for \n", (int)(data_len / 18));
-        for(int i = 0; i < 20; i++)
+        for(i = 0; i < 20; i++)
             printf("%02x", info_hash[i]);
         
         printf(".\n");
         
         char buf[512];
-        int i = 0, rc;
+        i = 0;
         rc = snprintf(buf + i, 512 - i, "d1:t9:gotvalues"); INC(i, rc, 512);
         rc = snprintf(buf + i, 512 - i, "1:h20:"); INC(i, rc, 512);
         COPY(buf, i, info_hash, 20, 512);
@@ -150,7 +154,7 @@ callback(void *closure,
             printf("Warning: Truncated results list at %i entries\n", entries_to_send);
         }
         
-        for(int j = 0; j < entries_to_send; j++) {
+        for(j = 0; j < entries_to_send; j++) {
             rc = snprintf(buf + i, 512 - i, "18:"); INC(i, rc, 512);
             COPY(buf, i, data + 18 * j, 18, 512);
         }
@@ -159,15 +163,17 @@ callback(void *closure,
         
         dht_send(buf, i, 0, (struct sockaddr *)&notify_addr, notify_addr_len);
     } else if(event == DHT_EVENT_INFOHASH_SEEN) {
+        int i, rc;
+        
         printf("Saw infohash: ");
         
-        for(int i = 0; i < 20; i++)
+        for(i = 0; i < 20; i++)
             printf("%02x", info_hash[i]);
         
         printf(".\n");
         
         char buf[512];
-        int i = 0, rc;
+        i = 0;
         rc = snprintf(buf + i, 512 - i, "d1:h20:"); INC(i, rc, 512);
         COPY(buf, i, info_hash, 20, 512);
         rc = snprintf(buf + i, 512 - i, "1:t7:sawhashe"); INC(i, rc, 512);
@@ -362,12 +368,14 @@ main(int argc, char **argv)
     
     // bootstrap from known nodes
     {
+        int i;
+        
         FILE *nodesin = fopen(nodes_file, "rb");
         if(nodesin) {
             int total;
             fread(&total, sizeof(int), 1, nodesin);
             
-            for(int i = 0; i < total; i++) {
+            for(i = 0; i < total; i++) {
                 if(num_bootstrap_nodes >= MAX_BOOTSTRAP_NODES)
                     break;
                 
@@ -551,14 +559,14 @@ main(int argc, char **argv)
             int total = num + num6;
             fwrite(&total, sizeof(int), 1, nodesout);
             
-            for(int i = 0; i < num; i++) {
+            for(i = 0; i < num; i++) {
                 struct sockaddr_storage storage = {0, };
                 
                 memcpy(&storage, &sin[i], sizeof(sin[i]));
                 fwrite(&storage, sizeof(storage), 1, nodesout);
             }
             
-            for(int i = 0; i < num6; i++) {
+            for(i = 0; i < num6; i++) {
                 struct sockaddr_storage storage = {0, };
                 
                 memcpy(&storage, &sin6[i], sizeof(sin6[i]));
